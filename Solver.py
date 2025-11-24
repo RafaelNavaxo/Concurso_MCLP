@@ -105,8 +105,39 @@ def local_optimization(seleccionados, cobertura,N_demanda):
         cobertura: lista de puntos cubiertos por candidato j
         N_demanda: numéro total de puntos a cubrir
     """
+    seleccionados = seleccionados.copy() #Evitar modificar el original
+    p = len(seleccionados)
+    mejor_cobertura, mejor_set = calc_cobertura_total(seleccionados,cobertura)
+    mejora = True
+    print(f"Cobertura inicial (greedy): {mejor_cobertura}")
+    while mejora:
+        mejora = False
+        for j_in in seleccionados.copy():
+            for j_out in range(len(cobertura)):
+                if j_out in seleccionados:
+                    continue
+                candidato_nuevo = seleccionados.copy()
+                candidato_nuevo.remove(j_in)
+                candidato_nuevo.append(j_out)
 
-    
+                cobt, cobt_set = calc_cobertura_total(candidato_nuevo,cobertura)
+
+                #Evaluar mejora
+                if cobt > mejor_cobertura:
+                    print("Se mejoro el set")
+                    print(f"mejora encontrada: +{cobt-mejor_cobertura} puntos")
+                    print(f"Se reemplazó {j_in} por {j_out}")
+                    #Hacer el cambio
+                    seleccionados = candidato_nuevo
+                    mejor_cobertura = cobt
+                    mejor_set = cobt_set
+                    mejora = True
+                    break
+                if mejora:
+                    break
+    print(f"Cobertura final tras búsqueda local: {mejor_cobertura}")
+    return seleccionados, mejor_cobertura, mejor_set
+
 def plot_cobertura(cords,chosen):
     plt.figure(figsize=(8, 8))
     plt.scatter(cords[:, 0], cords[:, 1], s=5, color="lightgray")
@@ -141,7 +172,7 @@ print("Coordenadas convertidas a km:", coords_km.shape)
 
 #-----Construccion de matriz de cobertura Manhattan
 Cobertura = []
-R = 0.5 #radio en Km
+R = 2.5 #radio en Km
 N = len(coords_km)
 for j in range(N):
     x_j, y_j = coords_km[j]
@@ -158,12 +189,19 @@ print("Candidato que más cubre:", mejor_j)
 print("Cobertura:", len(Cobertura[mejor_j]))
 #plot_manhattan_coverage(len(Cobertura[mejor_j]), coords_km, Cobertura, R)
 
-p = 3  # por ejemplo
+p = 10  # por ejemplo
 chosen, covered = greedy_search_cover(Cobertura, p, N)
 
 print("Instalaciones elegidas:", chosen)
 print("Cobertura total:", covered, "puntos")
 print("Porcentaje:", covered / N * 100, "%")
+
+seleccion_opt, cobertura_opt, set_cobertur_opt = local_optimization(chosen, Cobertura, N)
+
+print("Solución optimizada:", seleccion_opt)
+print("Cobertura optimizada:", cobertura_opt)
+print("Porcentaje cobertura:", cobertura_opt / N * 100, "%")
+
 
 print("ptos instalaciones en lat/lon", )
 for b in chosen:
@@ -172,6 +210,6 @@ for b in chosen:
     #print("id: "+str(b)+"- "+str(pto))
     print(str(Lat) + ", " + str(Lon))
 plot_cobertura(coords_km, chosen)
-
+plot_cobertura(coords_km, seleccion_opt)
 
 
