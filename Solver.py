@@ -43,13 +43,62 @@ def plot_puntos_lat_lon(ptos):
     plt.grid(True)
     plt.show()
 
+def conv_lat_lon2km(pts):
+    # -----Conversion de lat,lon a km
+    R_tierra = 6371  # Radio de la tierra en KM
+    latitud_prom = np.radians(pts["LATITUD"].mean())
+    latitud_rad = np.radians(pts["LATITUD"])
+    longitud_rad = np.radians(pts["LONGITUD"])
+    latitud_0 = latitud_rad.iloc[0]
+    longitud_0 = longitud_rad.iloc[0]
+    x_km = R_tierra * (longitud_rad - longitud_0) * np.cos(latitud_prom)
+    y_km = R_tierra * (latitud_rad - latitud_0)
+    coords_km = np.stack([x_km, y_km]).T
+
+    return coords_km
+
 def plot_puntos_km(ptos_km):
     plt.figure(figsize=(8, 8))
-    plt.scatter(x_km, y_km, s=8, color="blue", alpha=0.6)
+    plt.scatter(ptos_km[:,0], ptos_km[:,1], s=8, color="blue", alpha=0.6)
     plt.title("Puntos en coordenadas planas (km) – Aguascalientes")
     plt.xlabel("X (km)")
     plt.ylabel("Y (km)")
     plt.grid(True)
+    plt.show()
+
+def greedy_search_cover(cov,p,n):
+    """
+    Greedy search para encontrar la mejor forma de cubrir las
+    N demandas con p instalaciones
+    """
+    noCubiertos = set(range(n)) #Set de ptos no cubiertos
+    seleccionados = []
+    for _ in range(p):
+        mejor_j = None
+        mejor_ganancia = -1
+        for j in range(len(cov)):
+            ganancia = len(noCubiertos.intersection(cov[j]))
+            if ganancia > mejor_ganancia:
+                mejor_ganancia = ganancia
+                mejor_j = j
+        #Agregar el mejor candidato
+        seleccionados.append(mejor_j)
+        noCubiertos -= set(cov[mejor_j])
+        print(f"Elegido j={mejor_j}, aporta {mejor_ganancia} nuevos puntos.")
+    cobertura_total = n-len(noCubiertos)
+    return seleccionados, cobertura_total
+
+def plot_cobertura(cords,chosen):
+    plt.figure(figsize=(8, 8))
+    plt.scatter(cords[:, 0], cords[:, 1], s=5, color="lightgray")
+    for j in chosen:
+        xj, yj = cords[j]
+        plt.scatter([xj], [yj], s=120, color="red")
+    plt.title("Instalaciones seleccionadas por Greedy")
+    plt.xlabel("X (km)")
+    plt.ylabel("Y (km)")
+    plt.grid(True)
+    plt.axis("equal")
     plt.show()
 
 df = pd.read_csv('Casos/instancia_2019_3ambulancias_0.5km.csv')
@@ -64,25 +113,11 @@ puntos = df[["id", "LATITUD", "LONGITUD"]].copy()
 
 print("Numero de puntos de demanda", len(puntos))
 
-
-
-
-
-
 coords = puntos[["LONGITUD", "LATITUD"]].to_numpy()
 N = len(coords)
 print("Numero de puntos de demanda", N)
 
-#-----Conversion de lat,lon a km
-R_tierra = 6371 #Radio de la tierra en KM
-latitud_prom = np.radians(puntos["LATITUD"].mean())
-latitud_rad = np.radians(puntos["LATITUD"])
-longitud_rad = np.radians(puntos["LONGITUD"])
-latitud_0 = latitud_rad.iloc[0]
-longitud_0 = longitud_rad.iloc[0]
-x_km = R_tierra*(longitud_rad - longitud_0) * np.cos(latitud_prom)
-y_km = R_tierra*(latitud_rad-latitud_0)
-coords_km = np.stack([x_km, y_km]).T
+coords_km = conv_lat_lon2km(puntos)
 print("Coordenadas convertidas a km:", coords_km.shape)
 
 #-----Construccion de matriz de cobertura Manhattan
@@ -98,13 +133,26 @@ for j in range(N):
 """
 for j in range(5):
     print(f"Candidato {j} cubre {len(Cobertura[j])} puntos")
+"""
 mejor_j = np.argmax([len(c) for c in Cobertura])
 print("Candidato que más cubre:", mejor_j)
 print("Cobertura:", len(Cobertura[mejor_j]))
-plot_manhattan_coverage(len(Cobertura[mejor_j]), coords_km, Cobertura, R)
-"""
+#plot_manhattan_coverage(len(Cobertura[mejor_j]), coords_km, Cobertura, R)
 
+p = 3  # por ejemplo
+chosen, covered = greedy_search_cover(Cobertura, p, N)
 
+print("Instalaciones elegidas:", chosen)
+print("Cobertura total:", covered, "puntos")
+print("Porcentaje:", covered / N * 100, "%")
+
+print("ptos instalaciones en lat/lon", )
+for b in chosen:
+    Lat = df.iloc[b]['LATITUD']
+    Lon = df.iloc[b]['LONGITUD']
+    #print("id: "+str(b)+"- "+str(pto))
+    print(str(Lat) + ", " + str(Lon))
+plot_cobertura(coords_km, chosen)
 
 
 
