@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from tensorflow.python.data.experimental.ops.testing import sleep
+
 
 def plot_manhattan_coverage(j, coords_km, coverage, R):
     #Grafica el candidato j, su radio Manhattan (rombo) y cuáles puntos cubre.
@@ -66,7 +68,7 @@ def plot_puntos_km(ptos_km):
     plt.grid(True)
     plt.show()
 
-def greedy_search_cover(cov,p,n):
+def greedy_search_cover(cob,p,n):
     """
     Greedy search para encontrar la mejor forma de cubrir las
     N demandas con p instalaciones
@@ -76,18 +78,35 @@ def greedy_search_cover(cov,p,n):
     for _ in range(p):
         mejor_j = None
         mejor_ganancia = -1
-        for j in range(len(cov)):
-            ganancia = len(noCubiertos.intersection(cov[j]))
+        for j in range(len(cob)):
+            ganancia = len(noCubiertos.intersection(cob[j]))
             if ganancia > mejor_ganancia:
                 mejor_ganancia = ganancia
                 mejor_j = j
         #Agregar el mejor candidato
         seleccionados.append(mejor_j)
-        noCubiertos -= set(cov[mejor_j])
+        noCubiertos -= set(cob[mejor_j])
         print(f"Elegido j={mejor_j}, aporta {mejor_ganancia} nuevos puntos.")
     cobertura_total = n-len(noCubiertos)
     return seleccionados, cobertura_total
 
+def calc_cobertura_total(selec,cobt):
+    #Calcular cobertura de los seleccionados
+    cubiertos = set()
+    for j in selec:
+        cubiertos |= set(cobt[j])
+    return len(cubiertos),cubiertos
+
+def local_optimization(seleccionados, cobertura,N_demanda):
+    """
+    Optimización local con un cambio a la vez, para mejorar lo que greedy_search_cover
+    seleccionó
+        seleccionados: viene de la solución del greedy
+        cobertura: lista de puntos cubiertos por candidato j
+        N_demanda: numéro total de puntos a cubrir
+    """
+
+    
 def plot_cobertura(cords,chosen):
     plt.figure(figsize=(8, 8))
     plt.scatter(cords[:, 0], cords[:, 1], s=5, color="lightgray")
