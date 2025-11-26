@@ -1,8 +1,10 @@
+from turtle import distance
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from tensorflow.python.data.experimental.ops.testing import sleep
-
+import random
+import math
 
 def plot_manhattan_coverage(j, coords_km, coverage, R):
     #Grafica el candidato j, su radio Manhattan (rombo) y cuáles puntos cubre.
@@ -51,8 +53,8 @@ def conv_lat_lon2km(pts):
     latitud_prom = np.radians(pts["LATITUD"].mean())
     latitud_rad = np.radians(pts["LATITUD"])
     longitud_rad = np.radians(pts["LONGITUD"])
-    latitud_0 = latitud_rad.iloc[0]
-    longitud_0 = longitud_rad.iloc[0]
+    latitud_0 = np.radians(pts["LATITUD"].mean())
+    longitud_0 = np.radians(pts["LONGITUD"].mean())
     x_km = R_tierra * (longitud_rad - longitud_0) * np.cos(latitud_prom)
     y_km = R_tierra * (latitud_rad - latitud_0)
     coords_km = np.stack([x_km, y_km]).T
@@ -68,7 +70,7 @@ def plot_puntos_km(ptos_km):
     plt.grid(True)
     plt.show()
 
-def greedy_search_cover(cob,p,n):
+def greedy_search_cover(cob,cords_km,p,n,dist_min):
     """
     Greedy search para encontrar la mejor forma de cubrir las
     N demandas con p instalaciones
@@ -79,10 +81,26 @@ def greedy_search_cover(cob,p,n):
         mejor_j = None
         mejor_ganancia = -1
         for j in range(len(cob)):
+            if j in seleccionados:
+                continue
+            valido = True
+            xj, yj = cords_km[j]
+            for c in seleccionados:
+                xc, yc = cords_km[c]
+                distancia = abs(xj-xc) + abs(yj-yc)
+                if distancia < dist_min:
+                    valido = False
+                    break
+            if not valido:
+                continue
+
             ganancia = len(noCubiertos.intersection(cob[j]))
             if ganancia > mejor_ganancia:
                 mejor_ganancia = ganancia
                 mejor_j = j
+        if mejor_j is None:
+            print("No cubiertos encontrados con distancia minima")
+            break
         #Agregar el mejor candidato
         seleccionados.append(mejor_j)
         noCubiertos -= set(cob[mejor_j])
@@ -124,9 +142,9 @@ def local_optimization(seleccionados, cobertura,N_demanda):
 
                 #Evaluar mejora
                 if cobt > mejor_cobertura:
-                    print("Se mejoro el set")
+                    #print("Se mejoro el set")
                     print(f"mejora encontrada: +{cobt-mejor_cobertura} puntos")
-                    print(f"Se reemplazó {j_in} por {j_out}")
+                    #print(f"Se reemplazó {j_in} por {j_out}")
                     #Hacer el cambio
                     seleccionados = candidato_nuevo
                     mejor_cobertura = cobt
@@ -150,6 +168,67 @@ def plot_cobertura(cords,chosen):
     plt.grid(True)
     plt.axis("equal")
     plt.show()
+
+def vecino_random(solucion, cant_candidatos):
+    """
+    Como si fuera optimizaciion local, solo que aqui seleccionamos una entrada
+    y salida aleatoria
+    Con la finalidad de que no se quede atascado en un maximo local
+    """
+    j_in = random.choice(solucion) #candidato random
+    in_set = set(solucion)         #generamos el complemento de la solucion
+    posible_out = [j for j in range(cant_candidatos) if j not in in_set]
+
+    j_out = random.choice(posible_out)
+    #Remplazamos
+    vecino = solucion.copy()
+    idx = vecino.index(j_in)
+    vecino[idx] = j_out
+
+    return vecino, j_in, j_out
+
+def simulated_annealing(sol_inicial, cobertura, N_demanda, T0=1.0, a=0.996, iter=200, min_temp=1e-3):
+    """
+    Parametros:
+            T0 - temperatura inicial
+             a - alpha, constante de enfriamiento
+          iter - iteraciones por nivel de temperatura
+      min_temp - temperatura minima, bandera de finalizacion
+    """
+    num_candidatos = len(cobertura)
+    #Guardar solucion actual
+    actual = sol_inicial.copy()
+    cobertura_actual,_ = calc_cobertura_total(actual,cobertura)
+
+    #Guardar la mejor solucion
+    mejor = actual.copy()
+    mejor_cobertura = cobertura_actual
+
+    T = T0 #Inicializamos la mejor temp
+    print(f"SA: cobertura inicial = {cobertura_actual}")
+
+    while T > min_temp:
+        for _ in range(iter):
+            vecino, j_in, j_out = vecino_random(actual, num_candidatos)
+            cob_vecino,_ = calc_cobertura_total(vecino,cobertura)
+
+            delta = cob_vecino - cobertura_actual
+
+            if delta >= 0:
+                accept = True
+            else:
+                rho = math.exp(delta/T)
+                accept = (random.random() < rho)
+            if accept:
+                actual = vecino
+                cobertura_actual = cob_vecino
+
+                if cobertura_actual>mejor_cobertura:
+                    mejor = actual
+                    mejor_cobertura = cobertura_actual
+        T *= a
+    print(f"SA: mejor cobertura encontrada = {mejor_cobertura}")
+    return mejor, mejor_cobertura
 
 df = pd.read_csv('Casos/instancia_2019_3ambulancias_0.5km.csv')
 
@@ -190,7 +269,7 @@ print("Cobertura:", len(Cobertura[mejor_j]))
 #plot_manhattan_coverage(len(Cobertura[mejor_j]), coords_km, Cobertura, R)
 
 p = 10  # por ejemplo
-chosen, covered = greedy_search_cover(Cobertura, p, N)
+chosen, covered = greedy_search_cover(Cobertura,coords_km,p,N,2.5)
 
 print("Instalaciones elegidas:", chosen)
 print("Cobertura total:", covered, "puntos")
@@ -202,14 +281,20 @@ print("Solución optimizada:", seleccion_opt)
 print("Cobertura optimizada:", cobertura_opt)
 print("Porcentaje cobertura:", cobertura_opt / N * 100, "%")
 
+mejor_sl, mejor_cob = simulated_annealing(seleccion_opt, Cobertura,N)
+
+print("Solución optimizada:", mejor_sl)
+print("Cobertura optimizada:", mejor_cob)
+print("Porcentaje cobertura:", mejor_cob / N * 100, "%")
 
 print("ptos instalaciones en lat/lon", )
-for b in chosen:
+for b in mejor_sl:
     Lat = df.iloc[b]['LATITUD']
     Lon = df.iloc[b]['LONGITUD']
     #print("id: "+str(b)+"- "+str(pto))
     print(str(Lat) + ", " + str(Lon))
-plot_cobertura(coords_km, chosen)
+plot_puntos_km(coords_km)
 plot_cobertura(coords_km, seleccion_opt)
+plot_cobertura(coords_km, mejor_sl)
 
 
