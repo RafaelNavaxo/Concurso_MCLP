@@ -230,7 +230,7 @@ def simulated_annealing(sol_inicial, cobertura, N_demanda, T0=1.0, a=0.996, iter
     print(f"SA: mejor cobertura encontrada = {mejor_cobertura}")
     return mejor, mejor_cobertura
 
-df = pd.read_csv('Casos/instancia_2019_3ambulancias_0.5km.csv')
+df = pd.read_csv('Casos/instancia_2019.csv')
 
 print(df.head())
 print(df.columns)
