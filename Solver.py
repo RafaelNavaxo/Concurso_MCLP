@@ -1,5 +1,3 @@
-from turtle import distance
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -104,7 +102,7 @@ def greedy_search_cover(cob,cords_km,p,n,dist_min):
         #Agregar el mejor candidato
         seleccionados.append(mejor_j)
         noCubiertos -= set(cob[mejor_j])
-        print(f"Elegido j={mejor_j}, aporta {mejor_ganancia} nuevos puntos.")
+        #print(f"Elegido j={mejor_j}, aporta {mejor_ganancia} nuevos puntos.")
     cobertura_total = n-len(noCubiertos)
     return seleccionados, cobertura_total
 
@@ -127,7 +125,7 @@ def local_optimization(seleccionados, cobertura,N_demanda):
     p = len(seleccionados)
     mejor_cobertura, mejor_set = calc_cobertura_total(seleccionados,cobertura)
     mejora = True
-    print(f"Cobertura inicial (greedy): {mejor_cobertura}")
+    #print(f"Cobertura inicial (greedy): {mejor_cobertura}")
     while mejora:
         mejora = False
         for j_in in seleccionados.copy():
@@ -143,7 +141,7 @@ def local_optimization(seleccionados, cobertura,N_demanda):
                 #Evaluar mejora
                 if cobt > mejor_cobertura:
                     #print("Se mejoro el set")
-                    print(f"mejora encontrada: +{cobt-mejor_cobertura} puntos")
+                    #print(f"mejora encontrada: +{cobt-mejor_cobertura} puntos")
                     #print(f"Se reemplazó {j_in} por {j_out}")
                     #Hacer el cambio
                     seleccionados = candidato_nuevo
@@ -153,7 +151,7 @@ def local_optimization(seleccionados, cobertura,N_demanda):
                     break
                 if mejora:
                     break
-    print(f"Cobertura final tras búsqueda local: {mejor_cobertura}")
+    #print(f"Cobertura final tras búsqueda local: {mejor_cobertura}")
     return seleccionados, mejor_cobertura, mejor_set
 
 def plot_cobertura(cords,chosen):
@@ -187,7 +185,7 @@ def vecino_random(solucion, cant_candidatos):
 
     return vecino, j_in, j_out
 
-def simulated_annealing(sol_inicial, cobertura, N_demanda, T0=1.0, a=0.996, iter=200, min_temp=1e-3):
+def simulated_annealing(sol_inicial, cobertura, N_demanda, T0=1.0, a=0.995, iter=150, min_temp=1e-3):
     """
     Parametros:
             T0 - temperatura inicial
@@ -205,7 +203,7 @@ def simulated_annealing(sol_inicial, cobertura, N_demanda, T0=1.0, a=0.996, iter
     mejor_cobertura = cobertura_actual
 
     T = T0 #Inicializamos la mejor temp
-    print(f"SA: cobertura inicial = {cobertura_actual}")
+    #print(f"SA: cobertura inicial = {cobertura_actual}")
 
     while T > min_temp:
         for _ in range(iter):
@@ -229,72 +227,3 @@ def simulated_annealing(sol_inicial, cobertura, N_demanda, T0=1.0, a=0.996, iter
         T *= a
     print(f"SA: mejor cobertura encontrada = {mejor_cobertura}")
     return mejor, mejor_cobertura
-
-df = pd.read_csv('Casos/instancia_2019.csv')
-
-print(df.head())
-print(df.columns)
-
-if "id" not in df.columns:
-    df["id"] = df.index
-
-puntos = df[["id", "LATITUD", "LONGITUD"]].copy()
-
-print("Numero de puntos de demanda", len(puntos))
-
-coords = puntos[["LONGITUD", "LATITUD"]].to_numpy()
-N = len(coords)
-print("Numero de puntos de demanda", N)
-
-coords_km = conv_lat_lon2km(puntos)
-print("Coordenadas convertidas a km:", coords_km.shape)
-
-#-----Construccion de matriz de cobertura Manhattan
-Cobertura = []
-R = 2.5 #radio en Km
-N = len(coords_km)
-for j in range(N):
-    x_j, y_j = coords_km[j]
-    M_dist = np.abs(coords_km[:,0] - x_j) + np.abs(coords_km[:,1] - y_j)
-
-    idx_Cobertura = np.where(M_dist <= R)[0]
-    Cobertura.append(idx_Cobertura)
-"""
-for j in range(5):
-    print(f"Candidato {j} cubre {len(Cobertura[j])} puntos")
-"""
-mejor_j = np.argmax([len(c) for c in Cobertura])
-print("Candidato que más cubre:", mejor_j)
-print("Cobertura:", len(Cobertura[mejor_j]))
-#plot_manhattan_coverage(len(Cobertura[mejor_j]), coords_km, Cobertura, R)
-
-p = 10  # por ejemplo
-chosen, covered = greedy_search_cover(Cobertura,coords_km,p,N,2.5)
-
-print("Instalaciones elegidas:", chosen)
-print("Cobertura total:", covered, "puntos")
-print("Porcentaje:", covered / N * 100, "%")
-
-seleccion_opt, cobertura_opt, set_cobertur_opt = local_optimization(chosen, Cobertura, N)
-
-print("Solución optimizada:", seleccion_opt)
-print("Cobertura optimizada:", cobertura_opt)
-print("Porcentaje cobertura:", cobertura_opt / N * 100, "%")
-
-mejor_sl, mejor_cob = simulated_annealing(seleccion_opt, Cobertura,N)
-
-print("Solución optimizada:", mejor_sl)
-print("Cobertura optimizada:", mejor_cob)
-print("Porcentaje cobertura:", mejor_cob / N * 100, "%")
-
-print("ptos instalaciones en lat/lon", )
-for b in mejor_sl:
-    Lat = df.iloc[b]['LATITUD']
-    Lon = df.iloc[b]['LONGITUD']
-    #print("id: "+str(b)+"- "+str(pto))
-    print(str(Lat) + ", " + str(Lon))
-plot_puntos_km(coords_km)
-plot_cobertura(coords_km, seleccion_opt)
-plot_cobertura(coords_km, mejor_sl)
-
-
