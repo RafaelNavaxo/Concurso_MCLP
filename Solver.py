@@ -68,6 +68,24 @@ def plot_puntos_km(ptos_km):
     plt.grid(True)
     plt.show()
 
+def haversine_vec(punto_ref, lista_puntos):
+    R = 6371.0
+
+    # Convertir
+    lat1 = np.radians(punto_ref[0])
+    lon1 = np.radians(punto_ref[1])
+    lat2 = np.radians(lista_puntos[:, 0])
+    lon2 = np.radians(lista_puntos[:, 1])
+    # Diferencias
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    # Fórmula Haversine
+    a = np.sin(dlat / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2) ** 2
+    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+
+    distance = R * c
+    return distance
+
 def greedy_search_cover(cob,cords_km,p,n,dist_min):
     """
     Greedy search para encontrar la mejor forma de cubrir las

@@ -29,9 +29,11 @@ for nombre, df in lista_tuplas:
     for i in range(len(R)):
         for j in range(N):
             x_j, y_j = cords_km[j]
-            Euc_dist = np.sqrt(np.square(cords_km[:,0] - x_j) + np.square(cords_km[:,1] - y_j))
+            #Euc_dist = np.sqrt(np.square(cords_km[:,0] - x_j) + np.square(cords_km[:,1] - y_j))
             #M_dist = np.abs(cords_km[:, 0] - x_j) + np.abs(cords_km[:, 1] - y_j)
-            idx_Cobertura = np.where(Euc_dist <= R[i])[0]
+            Harv_dist = Solver.haversine_vec(puntos_np[j], puntos_np)
+
+            idx_Cobertura = np.where(Harv_dist <= R[i])[0]
             Cobertura[i].append(idx_Cobertura)
 
     P = [3,5,7,10]
@@ -56,8 +58,8 @@ for nombre, df in lista_tuplas:
             partes = nombre.split('.')  # Genera: ['ambulancias-2019', 'csv']
             header = partes[0]
             n_amb = str(R[r]).replace(".", "_")
-            name_sol =str(header)+"-euclidiana-"+n_amb+"-"+str(p)+".csv"
-            with open('Soluciones/Euclidiana/'+name_sol, mode='w', newline='', encoding='utf-8') as archivo:
+            name_sol =str(header)+"-haversine-"+n_amb+"-"+str(p)+".csv"
+            with open('Soluciones/Haversine/'+name_sol, mode='w', newline='', encoding='utf-8') as archivo:
                 writer = csv.writer(archivo)
                 writer.writerows(Solucion)
             print("Archivo CSV creado:",name_sol," creado exitosamente")
