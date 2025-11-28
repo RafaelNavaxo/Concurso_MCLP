@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random
 import math
-
+from geopy.distance import geodesic
 def plot_manhattan_coverage(j, coords_km, coverage, R):
     #Grafica el candidato j, su radio Manhattan (rombo) y cuáles puntos cubre.
     xj, yj = coords_km[j]
@@ -67,6 +67,24 @@ def plot_puntos_km(ptos_km):
     plt.ylabel("Y (km)")
     plt.grid(True)
     plt.show()
+
+def haversine_vec(punto_ref, lista_puntos):
+    R = 6371.0
+
+    # Convertir
+    lat1 = np.radians(punto_ref[0])
+    lon1 = np.radians(punto_ref[1])
+    lat2 = np.radians(lista_puntos[:, 0])
+    lon2 = np.radians(lista_puntos[:, 1])
+    # Diferencias
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    # Fórmula Haversine
+    a = np.sin(dlat / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2) ** 2
+    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+
+    distance = R * c
+    return distance
 
 def greedy_search_cover(cob,cords_km,p,n,dist_min):
     """
@@ -228,7 +246,7 @@ def simulated_annealing(sol_inicial, cobertura, N_demanda, T0=1.0, a=0.995, iter
     print(f"SA: mejor cobertura encontrada = {mejor_cobertura}")
     return mejor, mejor_cobertura
 
-df = pd.read_csv('Casos/instancia_2019.csv')
+df = pd.read_csv('Casos/ambulancias-2019.csv')
 
 print(df.head())
 print(df.columns)
@@ -251,11 +269,14 @@ print("Coordenadas convertidas a km:", coords_km.shape)
 Cobertura = []
 R = 2.5 #radio en Km
 N = len(coords_km)
+cords_inv = puntos[["LATITUD", "LONGITUD"]].to_numpy()
 for j in range(N):
     x_j, y_j = coords_km[j]
-    M_dist = np.abs(coords_km[:,0] - x_j) + np.abs(coords_km[:,1] - y_j)
+    #M_dist = np.abs(coords_km[:,0] - x_j) + np.abs(coords_km[:,1] - y_j)
     #Euc_dist = np.sqrt(np.square(coords_km[:,0] - x_j) + np.square(coords_km[:,1] - y_j))
-    idx_Cobertura = np.where(M_dist <= R)[0]
+    Harv_dist = haversine_vec(coords[j], coords)
+
+    idx_Cobertura = np.where(Harv_dist <= R)[0]
     Cobertura.append(idx_Cobertura)
 
 mejor_j = np.argmax([len(c) for c in Cobertura])
